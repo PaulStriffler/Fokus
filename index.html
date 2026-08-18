@@ -335,6 +335,16 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   .id-mini .idm-name { font-weight:700; font-size:14px; flex:1; }
   .id-mini .idm-pct { font-size:13px; font-weight:800; color:var(--muted); }
 
+  /* ---------- Sprachaufnahme: Umschalter + Fachwort-Korrektur ---------- */
+  .lang-seg { display:flex; align-items:center; gap:8px; margin:2px 0 12px; }
+  .lang-opt { background:var(--surface-2); border:1px solid var(--border); color:var(--muted); font-weight:700; font-size:12.5px; padding:5px 12px; border-radius:9px; cursor:pointer; transition:all .15s; }
+  .lang-opt.on { background:var(--brand); color:#111; border-color:var(--brand); }
+  .lang-hint { font-size:11px; color:var(--faint); flex:1; }
+  .corr-line { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .corr-chip { font-size:11px; font-weight:600; padding:3px 8px; border-radius:99px; background:color-mix(in srgb, var(--brand) 14%, var(--surface-2)); border:1px solid var(--border); color:var(--muted); }
+  .corr-chip b { color:var(--brand); font-weight:700; }
+  .transcript .interim { color:var(--faint); font-style:italic; }
+
   /* Checkbox-Häkchen "poppt" beim Aktivieren */
   @keyframes pop { 0%{transform:scale(.4);} 60%{transform:scale(1.18);} 100%{transform:scale(1);} }
   .check-btn.on svg { animation: pop .28s ease; }
@@ -853,11 +863,17 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <div class="card">
       <div class="card-head"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:18px;height:18px;vertical-align:-3px"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0012 0M12 17v4M9 21h6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sprachaufnahme</h3></div>
       <div class="card-sub">Tippe auf Aufnehmen und erzähl, was heute ansteht. Danach „Generieren".</div>
+      <div class="lang-seg" id="langSeg">
+        <button class="lang-opt on" data-lang="de-DE" onclick="setRecLang('de-DE')">DE</button>
+        <button class="lang-opt" data-lang="en-US" onclick="setRecLang('en-US')">EN</button>
+        <span class="lang-hint">Fachwörter werden automatisch korrigiert</span>
+      </div>
       <div class="rec-wrap">
         <button id="recBtn" class="rec-btn" onclick="toggleRec()"><span class="rec-icon"></span></button>
         <div class="rec-status" id="recStatus">Bereit</div>
       </div>
       <div class="transcript empty-t" id="vTranscript">Noch keine Aufnahme…</div>
+      <div id="vCorrections" class="corr-line"></div>
       <div class="row-btns">
         <button class="btn ghost sm" style="flex:1" onclick="clearRec()">Zurücksetzen</button>
         <button class="btn primary sm" style="flex:2" onclick="generateTodos()">Generieren</button>
@@ -1967,6 +1983,126 @@ function goTodos(){ document.querySelector('.tab[data-scr="todos"]').click(); }
    ========================================================= */
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null, recording = false, vTranscript = '';
+let finalRaw = '';                                   // roher, finaler Erkennungstext
+let recLang = localStorage.getItem('fokus-rec-lang') || 'de-DE';
+let lastCorrections = [];
+
+/* =========================================================
+   TRADING-LEXIKON — aus Pauls Notion-Vokabular (ICT/SMC).
+   Jede Zeile: kanonischer Begriff + typische Fehl-Erkennungen
+   (was die de-DE-Engine aus dem englischen Fachwort macht).
+   Wird genutzt, um (1) die beste Erkennungs-Alternative zu wählen
+   und (2) den Text konservativ zu korrigieren — ohne alles umzuwerfen.
+   ========================================================= */
+const TRADING_LEXICON = [
+  { term:'Order Block',       variants:['oder block','order blog','oder blog','orderblock','older block','order plock','oda block','order black','oder blog'] },
+  { term:'Order Blocks',      variants:['oder blocks','order blogs','orderblocks'] },
+  { term:'Liquidity Sweep',   variants:['liquidität sweep','liquidity swipe','liquidität swipe','liquid sweep','liquidität switch','liquidity switch','liq sweep','lick sweep','liquidität sweet','liquidity sweet'] },
+  { term:'Liquidity',         variants:['liquidität','liquiditi','liquiditi','liquid ity','liquidität'] },
+  { term:'Sweep',             variants:['swipe','sweet','sfeep','swiep'] },
+  { term:'Confluence',        variants:['konfluenz','confluenz','konfluence','conf luence','konfluens','confluens'] },
+  { term:'Confluences',       variants:['konfluenzen','confluenzen','konfluences'] },
+  { term:'Fair Value Gap',    variants:['fair value gap','fairvalue gap','wear value gap','fair value gab','fair value gep','fär value gap'] },
+  { term:'FVG',               variants:['ef vau ge','eff vau ge','f v g','eff foo gee','fvg','ef we ge'] },
+  { term:'Inverse FVG',       variants:['inverse fvg','inverse f v g','i fvg','inverse fair value gap'] },
+  { term:'BPR',               variants:['be pe er','b p r','bpr','be pe är'] },
+  { term:'Inverse BPR',       variants:['inverse bpr','i bpr','inverse be pe er'] },
+  { term:'Breaker Block',     variants:['breaker block','breaker blog','bräker block','breaker plock','breakerblock'] },
+  { term:'Break of Structure',variants:['break of structure','brake of structure','break off structure','break of struktur','brake of struktur'] },
+  { term:'BOS',               variants:['b o s','bos','be o es'] },
+  { term:'Bias',              variants:['beias','beis','beiäs','bijas'] },
+  { term:'Bullish',           variants:['bullisch','bulisch','bullish','buhlisch'] },
+  { term:'Bearish',           variants:['bärish','beerish','berish','bearisch','bärisch'] },
+  { term:'Higher High',       variants:['higher high','heigher high','heier high','higher hai'] },
+  { term:'Higher Low',        variants:['higher low','heigher low','heier low'] },
+  { term:'Lower Low',         variants:['lower low','loer low'] },
+  { term:'Lower High',        variants:['lower high','loer high'] },
+  { term:'Swing High',        variants:['swing high','swing hai','sving high'] },
+  { term:'Swing Low',         variants:['swing low','sving low'] },
+  { term:'Retrace',           variants:['retreis','ritrace','retreys',' retrace'] },
+  { term:'Wick',              variants:['wik','wieck','wick'] },
+  { term:'Candle Close',      variants:['candle close','kändl close','kandl close','candle clos','kändl clos'] },
+  { term:'Kerzenschluss',     variants:['kerzen schluss'] },
+  { term:'Stop Loss',         variants:['stop loss','stopp loss','stop-loss','stoploss','stop los','stopp los'] },
+  { term:'Take Profit',       variants:['take profit','teik profit','take profitt','take-profit','tejk profit'] },
+  { term:'Break Even',        variants:['break even','brake even','brik iven','break-even','brejk iven'] },
+  { term:'Risk Reward',       variants:['risk reward','risk-reward','risk to reward','risk rewort','risk reword'] },
+  { term:'Fibonacci',         variants:['fibonacci','fiwonatschi','fibonatschi','fiwonacci'] },
+  { term:'Fib Extension',     variants:['fib extension','fib extansion','fibonacci extension','fib extänschn'] },
+  { term:'Imbalance',         variants:['imbalance','imbalanz','im balance','imbälens'] },
+  { term:'Equal Highs',       variants:['equal highs','equal high','iqual highs','ikwal highs'] },
+  { term:'Equal Lows',        variants:['equal lows','equal low','iqual lows'] },
+  { term:'Point of Interest', variants:['point of interest','point of intrest'] },
+  { term:'Time Frame',        variants:['time frame','timeframe','teim freim','taim freim'] },
+  { term:'Higher Time Frame', variants:['higher time frame','higher timeframe','htf'] },
+  { term:'Setup',             variants:['set up','set-up','setap','settap'] },
+  { term:'Entry',             variants:['äntri','entri','entrie','entry'] },
+  { term:'Short',             variants:['schort','shortt','schortt'] },
+  { term:'Drawdown',          variants:['drawdown','draw down','drohdaun','draw-down'] },
+  { term:'Payout',            variants:['payout','pay out','peiaut','pay-out'] },
+  { term:'FTMO',              variants:['ftmo','ef te em o','ftm o','eff te em oh'] },
+  { term:'FOMO',              variants:['fomo','fo mo','foh mo'] },
+  { term:'Trailing Stop',     variants:['trailing stop','trailing sl','treiling stop','trailing-stop','treiling sl'] },
+  { term:'Partials',          variants:['partials','parcials','parschals','parschials'] },
+  { term:'Reversal',          variants:['reversal','riwörsal','riversal','revörsal'] },
+  { term:'Consolidation',     variants:['consolidation','konsolidierung','consolidierung','konsolidäischn'] },
+  { term:'Backtest',          variants:['backtest','back test','bäcktest'] },
+  { term:'Win-Rate',          variants:['win rate','winrate','win-rate','win reit'] },
+  { term:'Prop Firm',         variants:['prop firm','prop firma','prop-firm','prob firm'] },
+];
+/* Zusätzliche Fuzzy-Korrektur nur für sehr markante Einzelwörter (kein Risiko mit dt. Wörtern). */
+const FUZZY_TERMS = [
+  ['Confluence','confluence'],['Liquidity','liquidity'],['Retrace','retrace'],
+  ['Fibonacci','fibonacci'],['Imbalance','imbalance'],['Bullish','bullish'],
+  ['Bearish','bearish'],['Drawdown','drawdown'],['Reversal','reversal'],
+  ['Consolidation','consolidation'],['Breaker','breaker'],
+];
+
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function levenshtein(a,b){
+  const m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  let prev=Array.from({length:n+1},(_,i)=>i), cur=new Array(n+1);
+  for(let i=1;i<=m;i++){ cur[0]=i;
+    for(let j=1;j<=n;j++){ const cost=a[i-1]===b[j-1]?0:1;
+      cur[j]=Math.min(cur[j-1]+1, prev[j]+1, prev[j-1]+cost); }
+    [prev,cur]=[cur,prev];
+  }
+  return prev[n];
+}
+/* Konservative Fachwort-Korrektur: ersetzt NUR bekannte Varianten, lässt den Rest unangetastet. */
+function correctTradingTerms(raw){
+  if(!raw) return { text:'', corrections:[] };
+  let text = raw;
+  const corr = [];
+  // 1) Explizite Varianten (längste zuerst, damit Mehrwort-Begriffe nicht zerbrochen werden)
+  const entries = [];
+  TRADING_LEXICON.forEach(e => (e.variants||[]).forEach(v => entries.push({ term:e.term, v:v.toLowerCase() })));
+  entries.sort((a,b)=> b.v.length - a.v.length);
+  entries.forEach(({term,v})=>{
+    const re = new RegExp('(^|[^\\p{L}\\p{N}])('+escapeRe(v)+')(?=[^\\p{L}\\p{N}]|$)','giu');
+    text = text.replace(re, (m,pre,hit)=>{
+      if(hit.toLowerCase() !== term.toLowerCase()) corr.push({ from:hit, to:term });
+      return pre + term;
+    });
+  });
+  // 2) Leichte Fuzzy-Korrektur für markante Einzelwörter (Tippdistanz ≤ 2)
+  text = text.replace(/[\p{L}]{5,}/gu, w=>{
+    const lw = w.toLowerCase();
+    for(const [term,key] of FUZZY_TERMS){
+      if(lw===key.toLowerCase()) return term.toLowerCase()===lw ? w : term; // exakt → Kanon-Schreibweise
+      if(Math.abs(lw.length-key.length)<=2 && levenshtein(lw,key)<=2){
+        corr.push({ from:w, to:term }); return term;
+      }
+    }
+    return w;
+  });
+  // Doppelte Korrekturen zusammenfassen
+  const seen=new Set(), uniq=[];
+  corr.forEach(c=>{ const k=c.from.toLowerCase()+'|'+c.to; if(!seen.has(k)){ seen.add(k); uniq.push(c); } });
+  return { text: text.replace(/\s{2,}/g,' ').trim(), corrections: uniq };
+}
+/* Kompaktes Glossar für die KI (kanonische Begriffe). */
+function tradingGlossary(){ return TRADING_LEXICON.map(e=>e.term).join(', '); }
 
 function saveApiKey(){
   const inp = document.getElementById('apiKeyInput');
@@ -1986,6 +2122,7 @@ function updateApiKeyStatus(){
 function renderTodosTab(){
   renderTodos();
   updateApiKeyStatus();
+  document.querySelectorAll('#langSeg .lang-opt').forEach(b=>b.classList.toggle('on', b.dataset.lang===recLang));
   const fb = document.getElementById('vFallback');
   if(!SpeechRec && fb && !fb.dataset.init){
     fb.dataset.init = '1';
@@ -1994,37 +2131,82 @@ function renderTodosTab(){
     fb.innerHTML = '<label class="fld">Kein Mikro-Zugriff? Einfach eintippen:</label><textarea id="vManual" placeholder="z.B. Ich muss die Rechnung schreiben, dann Kunden anrufen und abends trainieren"></textarea>';
   }
 }
+function setRecLang(lang){
+  recLang = lang; localStorage.setItem('fokus-rec-lang', lang);
+  document.querySelectorAll('#langSeg .lang-opt').forEach(b=>b.classList.toggle('on', b.dataset.lang===lang));
+  if(recording){ stopRec(); setTimeout(startRec, 200); }   // mit neuer Sprache neu starten
+}
 function toggleRec(){ recording ? stopRec() : startRec(); }
+
+/* Wählt aus den Erkennungs-Alternativen die mit den meisten Trading-Lexikon-Treffern. */
+function pickBestAlt(result){
+  const n = Math.min(result.length||1, 3);
+  let best = result[0].transcript, bestScore = -1;
+  for(let i=0;i<n;i++){
+    const t = result[i].transcript;
+    const { corrections } = correctTradingTerms(t);
+    // Score: Anzahl erkannter Fachbegriffe (Korrekturen) + kleiner Bonus für Confidence
+    const score = corrections.length*2 + (result[i].confidence||0);
+    if(score > bestScore){ bestScore = score; best = t; }
+  }
+  return best;
+}
 function startRec(){
   if(!SpeechRec){ toast('Spracherkennung nicht verfügbar – bitte eintippen'); return; }
   recognition = new SpeechRec();
-  recognition.lang = 'de-DE';
+  recognition.lang = recLang;
   recognition.continuous = true;
   recognition.interimResults = true;
-  vTranscript = '';
+  try { recognition.maxAlternatives = 3; } catch(_){}
+  finalRaw = ''; vTranscript = ''; lastCorrections = [];
   recognition.onresult = e => {
-    let full = '';
-    for(let i=0;i<e.results.length;i++){ full += e.results[i][0].transcript + ' '; }
-    vTranscript = full.trim();
-    const el = document.getElementById('vTranscript');
-    el.textContent = vTranscript || 'Sprich jetzt…';
-    el.classList.toggle('empty-t', !vTranscript);
+    let interim = '';
+    // Nur NEUE Ergebnisse ab resultIndex verarbeiten → keine Dopplungen/Durcheinander
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      const res = e.results[i];
+      if(res.isFinal){
+        const best = pickBestAlt(res).trim();
+        if(best) finalRaw += (finalRaw ? ' ' : '') + best;
+      } else {
+        interim += res[0].transcript;
+      }
+    }
+    const { text, corrections } = correctTradingTerms(finalRaw);
+    vTranscript = text; lastCorrections = corrections;
+    renderTranscript(text, correctTradingTerms(interim).text);
   };
-  recognition.onerror = e => { if(e.error!=='no-speech'){ toast('Fehler: '+e.error); } };
+  recognition.onerror = e => { if(e.error!=='no-speech' && e.error!=='aborted'){ toast('Fehler: '+e.error); } };
   recognition.onend = () => { if(recording){ try{ recognition.start(); }catch(_){} } };  // am Leben halten
   try { recognition.start(); recording = true; updateRecUI(); }
   catch(err){ toast('Aufnahme fehlgeschlagen'); }
 }
-function stopRec(){ recording = false; if(recognition){ try{ recognition.stop(); }catch(_){} } updateRecUI(); }
+function stopRec(){ recording = false; if(recognition){ try{ recognition.stop(); }catch(_){} } updateRecUI(); renderCorrections(); }
 function updateRecUI(){
   document.getElementById('recBtn').classList.toggle('on', recording);
-  document.getElementById('recStatus').textContent = recording ? '● Aufnahme läuft… tippen zum Stoppen' : (vTranscript ? 'Aufnahme fertig' : 'Bereit');
+  document.getElementById('recStatus').textContent = recording ? '● Aufnahme läuft… tippen zum Stoppen' : (vTranscript ? 'Aufnahme fertig · tippen für neu' : 'Bereit');
+}
+/* Zeigt finalen (korrigierten) Text + graue Zwischenerkennung. */
+function renderTranscript(finalText, interim){
+  const el = document.getElementById('vTranscript');
+  const has = finalText || interim;
+  el.classList.toggle('empty-t', !has);
+  if(!has){ el.textContent = 'Noch keine Aufnahme…'; renderCorrections(); return; }
+  el.innerHTML = esc(finalText) + (interim ? (finalText?' ':'') + '<span class="interim">'+esc(interim)+'</span>' : '');
+  renderCorrections();
+}
+/* Zeigt, welche Fachwörter korrigiert wurden — Transparenz statt „Wörter durcheinander". */
+function renderCorrections(){
+  const el = document.getElementById('vCorrections'); if(!el) return;
+  if(!lastCorrections || !lastCorrections.length){ el.innerHTML=''; return; }
+  el.innerHTML = lastCorrections.slice(0,12)
+    .map(c=>`<span class="corr-chip">${esc(c.from)} → <b>${esc(c.to)}</b></span>`).join('');
 }
 function clearRec(){
-  vTranscript = ''; if(recording) stopRec();
+  vTranscript = ''; finalRaw = ''; lastCorrections = []; if(recording) stopRec();
   const el = document.getElementById('vTranscript'); el.textContent = 'Noch keine Aufnahme…'; el.classList.add('empty-t');
   const m = document.getElementById('vManual'); if(m) m.value='';
   document.getElementById('suggestions').innerHTML='';
+  renderCorrections();
   updateRecUI();
 }
 
@@ -2101,7 +2283,12 @@ function setApiKey(k){ localStorage.setItem(API_KEY_STORE, k.trim()); }
 
 async function generateTodos(){
   const manual = document.getElementById('vManual');
-  const text = (vTranscript || (manual? manual.value : '') || '').trim();
+  // vTranscript ist bereits fachwort-korrigiert; manuellen Text ebenfalls korrigieren
+  let text = (vTranscript || '').trim();
+  if(!text && manual && manual.value.trim()){
+    const c = correctTradingTerms(manual.value.trim());
+    text = c.text; lastCorrections = c.corrections; renderCorrections();
+  }
   if(!text){ toast('Nimm zuerst etwas auf oder tippe es ein'); return; }
 
   const key = getApiKey();
@@ -2131,14 +2318,18 @@ async function generateTodos(){
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         messages: [{ role:'user', content:
-          `Du bist ein Aufgaben-Assistent. Der Nutzer hat folgenden Text eingesprochen oder getippt. Extrahiere daraus einzelne, klare To-Do-Aufgaben als kurze Stichpunkte (Imperativ oder Infinitiv).
+          `Du bist ein Aufgaben-Assistent für einen Trader. Der Nutzer hat den folgenden Text per Sprache (Deutsch, gemischt mit englischen Trading-Fachwörtern) eingesprochen. Die Erkennung kann Fachwörter verzerrt haben.
+
+Aufgabe in ZWEI Schritten:
+1. Korrigiere zuerst still verzerrte Trading-Fachwörter zur korrekten Schreibweise. Nutze dieses Glossar als Referenz (nur anwenden, wenn eindeutig gemeint): ${tradingGlossary()}.
+2. Extrahiere dann einzelne, klare To-Do-/Notiz-Stichpunkte.
 
 Regeln:
-- Jede Aufgabe als eigener Stichpunkt
-- Kurz und präzise, keine ganzen Sätze
-- Füllwörter, Modalverben ("ich muss", "ich sollte") weglassen
-- Zeitangaben beibehalten wenn vorhanden (z.B. "um 18 Uhr")
-- Zusammengehöriges zusammenlassen (z.B. "Brot und Milch kaufen")
+- Fachbegriffe in korrekter Schreibweise beibehalten (z.B. "Order Block", "Liquidity Sweep", "FVG")
+- Erfinde nichts dazu, ändere keine Zahlen/Timeframes (Daily, 4H, Weekly)
+- Jede Aufgabe/Notiz als eigener kurzer Stichpunkt (Imperativ oder Infinitiv)
+- Füllwörter und Modalverben ("ich muss", "ich sollte") weglassen
+- Zeitangaben beibehalten
 - NUR ein JSON-Array mit Strings zurückgeben, NICHTS anderes
 
 Text: "${text.replace(/"/g,'\\"')}"` }],

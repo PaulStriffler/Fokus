@@ -43,6 +43,18 @@ export function greeting(d: Date = new Date()): string {
   return "Gute Nacht";
 }
 
+/** dateKeys Monday..Sunday of the week containing `d` (local). */
+export function weekKeys(d: Date = new Date()): string[] {
+  const day = (d.getDay() + 6) % 7; // 0 = Monday
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - day);
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(monday);
+    x.setDate(monday.getDate() + i);
+    return dateKey(x);
+  });
+}
+
 export function relativeDay(key: string): string {
   const today = dateKey();
   if (key === today) return "Heute";

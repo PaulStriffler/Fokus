@@ -13,5 +13,5 @@ export const NAV: NavItem[] = [
   { href: "/finanzen", label: "Finanzen", icon: Wallet, color: "var(--area-finance)", ready: true },
   { href: "/trading", label: "Trading", icon: TrendingUp, color: "var(--area-trading)", ready: false },
   { href: "/koerper", label: "Körper", icon: HeartPulse, color: "var(--area-gym)", ready: false },
-  { href: "/wissen", label: "Wissen", icon: GraduationCap, color: "var(--area-education)", ready: false },
+  { href: "/wissen", label: "Wissen", icon: GraduationCap, color: "var(--area-education)", ready: true },
 ];

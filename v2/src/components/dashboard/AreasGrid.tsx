@@ -6,6 +6,7 @@ import { NAV } from "@/lib/nav";
 import { fadeUp } from "@/lib/motion";
 
 const SUBTITLE: Record<string, string> = {
+  "/haare": "Kunden · Verdienst · Verlauf",
   "/trading": "FTMO · Regeln · Journal",
   "/koerper": "Gym · Ernährung · Schlaf",
   "/wissen": "Immobilien · Bücher · Skills",

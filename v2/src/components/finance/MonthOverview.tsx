@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
 import { Bar } from "@/components/ui/Bar";
 import { useStore } from "@/lib/store";
-import { monthSummary, monthLabel } from "@/lib/finance";
+import { monthSummary, monthLabel, monthKey } from "@/lib/finance";
+import { totalMonth } from "@/lib/haircuts";
 import { eur, signed } from "@/lib/format";
 
 const PALETTE = [
@@ -18,7 +19,9 @@ export function MonthOverview() {
   const income = useStore((s) => s.income);
   const expenses = useStore((s) => s.expenses);
   const goals = useStore((s) => s.goals);
-  const m = monthSummary(income, expenses);
+  const haircuts = useStore((s) => s.haircuts);
+  const haareMonth = totalMonth(haircuts);
+  const m = monthSummary(income, expenses, monthKey(), haareMonth);
 
   const positive = m.leftover >= 0;
   const earnedExtra = m.earnedActual - m.earnedPlan;
@@ -50,6 +53,14 @@ export function MonthOverview() {
             color="var(--red)"
           />
         </div>
+
+        {haareMonth > 0 && (
+          <div className="mt-3 flex items-center gap-2 rounded-[var(--r-sm)] bg-[color-mix(in_srgb,var(--teal)_10%,transparent)] px-3.5 py-2.5">
+            <span className="h-2 w-2 rounded-full" style={{ background: "var(--teal)" }} />
+            <span className="t-foot text-[var(--text-2)] flex-1">davon Haare schneiden</span>
+            <span className="t-foot font-[650] tabular" style={{ color: "var(--teal)" }}>{eur(haareMonth)}</span>
+          </div>
+        )}
       </Card>
 
       {/* Kategorie-Aufschlüsselung */}

@@ -22,6 +22,16 @@ export type Goal = {
   saved: number;
   monthly: number;
   color: string;
+  lastDaily?: string; // dateKey — an welchem Tag zuletzt die Tagesrate zurückgelegt wurde
+};
+
+export type Haircut = {
+  id: string;
+  date: string; // dateKey
+  client: string;
+  amount: number;
+  note?: string;
+  created: number;
 };
 
 export type SleepEntry = {
@@ -65,6 +75,7 @@ type State = {
   books: Book[];
 
   todos: Todo[];
+  haircuts: Haircut[];
 
   addTx: (kind: "income" | "expenses", tx: Omit<TxItem, "id">) => void;
   updateTx: (kind: "income" | "expenses", id: string, patch: Partial<TxItem>) => void;
@@ -89,6 +100,11 @@ type State = {
   toggleTodo: (id: string) => void;
   updateTodo: (id: string, patch: Partial<Todo>) => void;
   removeTodo: (id: string) => void;
+
+  addHaircut: (h: Omit<Haircut, "id" | "created">) => void;
+  addHaircuts: (list: Omit<Haircut, "id" | "created">[]) => void;
+  updateHaircut: (id: string, patch: Partial<Haircut>) => void;
+  removeHaircut: (id: string) => void;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -206,6 +222,7 @@ export const useStore = create<State>()(
       books: seedBooks,
 
       todos: [],
+      haircuts: [],
 
       addTx: (kind, tx) => set((s) => ({ [kind]: [...s[kind], { ...tx, id: uid() }] }) as Partial<State>),
       updateTx: (kind, id, patch) =>
@@ -265,6 +282,15 @@ export const useStore = create<State>()(
       updateTodo: (id, patch) =>
         set((s) => ({ todos: s.todos.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
       removeTodo: (id) => set((s) => ({ todos: s.todos.filter((t) => t.id !== id) })),
+
+      addHaircut: (h) => set((s) => ({ haircuts: [{ ...h, id: uid(), created: Date.now() }, ...s.haircuts] })),
+      addHaircuts: (list) =>
+        set((s) => ({
+          haircuts: [...list.map((h) => ({ ...h, id: uid(), created: Date.now() })), ...s.haircuts],
+        })),
+      updateHaircut: (id, patch) =>
+        set((s) => ({ haircuts: s.haircuts.map((h) => (h.id === id ? { ...h, ...patch } : h)) })),
+      removeHaircut: (id) => set((s) => ({ haircuts: s.haircuts.filter((h) => h.id !== id) })),
     }),
     {
       name: "fokus-store-v2",

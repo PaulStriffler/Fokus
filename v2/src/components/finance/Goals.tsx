@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { Bar } from "@/components/ui/Bar";
 import { Sheet } from "@/components/ui/Sheet";
 import { Field, TextInput } from "@/components/ui/Field";
+import { Check } from "lucide-react";
 import { useStore, type Goal } from "@/lib/store";
-import { eur } from "@/lib/format";
-import { goalETA } from "@/lib/finance";
+import { eur, dateKey } from "@/lib/format";
+import { goalETA, dailyRate } from "@/lib/finance";
 import { fadeUp } from "@/lib/motion";
 
 const COLORS = ["var(--green)", "var(--accent)", "var(--gold)", "var(--purple)", "var(--orange)", "var(--mint)"];
@@ -86,20 +87,50 @@ export function Goals() {
         <div className="flex flex-col gap-3">
           {goals.map((g) => {
             const p = g.target > 0 ? g.saved / g.target : 0;
+            const rate = dailyRate(g);
+            const savedToday = g.lastDaily === dateKey();
             return (
               <motion.div key={g.id} variants={fadeUp}>
-                <Card as="button" interactive onClick={() => openEdit(g)} className="w-full">
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <span className="t-headline">{g.name}</span>
-                    <span className="t-callout font-[650] tabular">{Math.round(p * 100)}%</span>
-                  </div>
-                  <Bar progress={p} color={g.color} className="mb-2.5" />
-                  <div className="flex items-center justify-between t-foot">
-                    <span className="text-[var(--text-2)] tabular">
-                      {eur(g.saved)} <span className="text-[var(--text-3)]">/ {eur(g.target)}</span>
-                    </span>
-                    <span className="text-[var(--text-3)]">{goalETA(g)}</span>
-                  </div>
+                <Card className="w-full">
+                  <button onClick={() => openEdit(g)} className="w-full text-left">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="t-headline">{g.name}</span>
+                      <span className="t-callout font-[650] tabular">{Math.round(p * 100)}%</span>
+                    </div>
+                    <Bar progress={p} color={g.color} className="mb-2.5" />
+                    <div className="flex items-center justify-between t-foot">
+                      <span className="text-[var(--text-2)] tabular">
+                        {eur(g.saved)} <span className="text-[var(--text-3)]">/ {eur(g.target)}</span>
+                      </span>
+                      <span className="text-[var(--text-3)]">{goalETA(g)}</span>
+                    </div>
+                  </button>
+
+                  {rate > 0 && (
+                    <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3">
+                      <span className="t-foot text-[var(--text-2)]">
+                        Täglich <span className="text-[var(--text)] font-[650] tabular">{eur(rate, true)}</span> zurücklegen
+                      </span>
+                      <motion.button
+                        whileTap={{ scale: 0.94 }}
+                        disabled={savedToday}
+                        onClick={() =>
+                          !savedToday &&
+                          updateGoal(g.id, {
+                            saved: Math.min(g.target, g.saved + rate),
+                            lastDaily: dateKey(),
+                          })
+                        }
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-full t-foot font-[600] transition-colors"
+                        style={{
+                          background: savedToday ? "color-mix(in srgb, var(--green) 16%, transparent)" : g.color,
+                          color: savedToday ? "var(--green)" : "#fff",
+                        }}
+                      >
+                        {savedToday ? <><Check size={13} strokeWidth={3} /> Heute erledigt</> : "Heute gespart"}
+                      </motion.button>
+                    </div>
+                  )}
                 </Card>
               </motion.div>
             );

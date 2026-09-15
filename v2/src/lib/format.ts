@@ -28,6 +28,11 @@ export function dateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Local YYYY-MM month key. */
+export function monthKeyOf(d: Date = new Date()): string {
+  return dateKey(d).slice(0, 7);
+}
+
 /** Parse a YYYY-MM-DD key back into a local Date. */
 export function parseKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);

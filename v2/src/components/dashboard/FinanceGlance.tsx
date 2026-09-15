@@ -6,13 +6,15 @@ import { motion } from "motion/react";
 import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
 import { useStore } from "@/lib/store";
-import { monthSummary } from "@/lib/finance";
+import { monthSummary, monthKey } from "@/lib/finance";
+import { totalMonth } from "@/lib/haircuts";
 import { eur, signed } from "@/lib/format";
 
 export function FinanceGlance() {
   const income = useStore((s) => s.income);
   const expenses = useStore((s) => s.expenses);
-  const { earnedActual, spentActual, leftover } = monthSummary(income, expenses);
+  const haircuts = useStore((s) => s.haircuts);
+  const { earnedActual, spentActual, leftover } = monthSummary(income, expenses, monthKey(), totalMonth(haircuts));
   const cashflow = leftover;
   const savingsRate = earnedActual > 0 ? (leftover / earnedActual) * 100 : 0;
   const positive = cashflow >= 0;

@@ -29,8 +29,13 @@ export type MonthSummary = {
   byCategory: { category: string; amount: number; pct: number }[];
 };
 
-export function monthSummary(income: TxItem[], expenses: TxItem[], mk: string = monthKey()): MonthSummary {
-  const earnedActual = actualForMonth(income, mk);
+export function monthSummary(
+  income: TxItem[],
+  expenses: TxItem[],
+  mk: string = monthKey(),
+  extraIncome = 0
+): MonthSummary {
+  const earnedActual = actualForMonth(income, mk) + extraIncome;
   const earnedPlan = planMonthly(income);
   const spentActual = actualForMonth(expenses, mk);
   const spentPlan = planMonthly(expenses);
@@ -45,6 +50,15 @@ export function monthSummary(income: TxItem[], expenses: TxItem[], mk: string = 
     .sort((a, b) => b.amount - a.amount);
 
   return { earnedActual, earnedPlan, spentActual, spentPlan, leftover: earnedActual - spentActual, byCategory };
+}
+
+export function daysInMonth(d: Date = new Date()): number {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+
+/** Daily amount to set aside to hit the monthly savings target. */
+export function dailyRate(g: Goal): number {
+  return g.monthly > 0 ? g.monthly / daysInMonth() : 0;
 }
 
 /** Months until a goal is reached given its monthly contribution. */

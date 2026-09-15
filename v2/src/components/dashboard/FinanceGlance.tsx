@@ -6,13 +6,15 @@ import { motion } from "motion/react";
 import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
 import { useStore } from "@/lib/store";
-import { summarize } from "@/lib/finance";
+import { monthSummary } from "@/lib/finance";
 import { eur, signed } from "@/lib/format";
 
 export function FinanceGlance() {
   const income = useStore((s) => s.income);
   const expenses = useStore((s) => s.expenses);
-  const { incomeMonthly, expenseMonthly, cashflow, savingsRate } = summarize(income, expenses);
+  const { earnedActual, spentActual, leftover } = monthSummary(income, expenses);
+  const cashflow = leftover;
+  const savingsRate = earnedActual > 0 ? (leftover / earnedActual) * 100 : 0;
   const positive = cashflow >= 0;
 
   return (
@@ -56,17 +58,17 @@ export function FinanceGlance() {
             className="absolute inset-y-0 left-0 rounded-full"
             style={{ background: "var(--red)" }}
             initial={{ width: 0 }}
-            animate={{ width: `${incomeMonthly ? (expenseMonthly / incomeMonthly) * 100 : 0}%` }}
+            animate={{ width: `${earnedActual ? Math.min(100, (spentActual / earnedActual) * 100) : 0}%` }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
 
         <div className="flex justify-between t-foot">
           <span className="text-[var(--text-2)]">
-            Einnahmen <span className="text-[var(--text)] font-[600]">{eur(incomeMonthly)}</span>
+            Verdient <span className="text-[var(--text)] font-[600]">{eur(earnedActual)}</span>
           </span>
           <span className="text-[var(--text-2)]">
-            Ausgaben <span className="text-[var(--text)] font-[600]">{eur(expenseMonthly)}</span>
+            Ausgegeben <span className="text-[var(--text)] font-[600]">{eur(spentActual)}</span>
           </span>
         </div>
       </Link>

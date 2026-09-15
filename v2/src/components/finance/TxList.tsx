@@ -14,7 +14,7 @@ import {
   type TxItem,
   type Freq,
 } from "@/lib/store";
-import { eur, monthly } from "@/lib/format";
+import { eur, monthly, dateKey, parseKey } from "@/lib/format";
 import { spring } from "@/lib/motion";
 
 const FREQS: Freq[] = ["monatlich", "jährlich", "einmalig"];
@@ -35,6 +35,7 @@ export function TxList({ kind }: { kind: "income" | "expenses" }) {
   const [amount, setAmount] = useState("");
   const [freq, setFreq] = useState<Freq>("monatlich");
   const [category, setCategory] = useState<string>(cats[0]);
+  const [date, setDate] = useState<string>(dateKey());
 
   const openNew = () => {
     setEditing(null);
@@ -42,6 +43,7 @@ export function TxList({ kind }: { kind: "income" | "expenses" }) {
     setAmount("");
     setFreq("monatlich");
     setCategory(cats[0]);
+    setDate(dateKey());
     setOpen(true);
   };
 
@@ -51,13 +53,20 @@ export function TxList({ kind }: { kind: "income" | "expenses" }) {
     setAmount(String(t.amount));
     setFreq(t.freq);
     setCategory(t.category);
+    setDate(t.date || dateKey());
     setOpen(true);
   };
 
   const save = () => {
     const amt = parseFloat(amount.replace(",", ".")) || 0;
     if (!name.trim() || amt <= 0) return;
-    const data = { name: name.trim(), amount: amt, freq, category };
+    const data: Omit<TxItem, "id"> = {
+      name: name.trim(),
+      amount: amt,
+      freq,
+      category,
+      ...(freq === "einmalig" ? { date } : {}),
+    };
     if (editing) updateTx(kind, editing.id, data);
     else addTx(kind, data);
     setOpen(false);
@@ -114,6 +123,9 @@ export function TxList({ kind }: { kind: "income" | "expenses" }) {
                   <span className="block t-callout font-[600] truncate">{t.name}</span>
                   <span className="block t-foot text-[var(--text-3)]">
                     {t.category} · {t.freq}
+                    {t.freq === "einmalig" && t.date
+                      ? ` · ${parseKey(t.date).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}`
+                      : ""}
                   </span>
                 </span>
                 <span className="text-right">
@@ -155,6 +167,11 @@ export function TxList({ kind }: { kind: "income" | "expenses" }) {
           <span className="block t-foot text-[var(--text-2)] mb-1.5 ml-0.5">Häufigkeit</span>
           <Segmented options={FREQS} value={freq} onChange={setFreq} id="freq" />
         </div>
+        {freq === "einmalig" && (
+          <Field label="Datum">
+            <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+        )}
         <Field label="Kategorie">
           <Select value={category} onChange={setCategory} options={cats} />
         </Field>

@@ -12,6 +12,7 @@ export type TxItem = {
   amount: number;
   freq: Freq;
   category: string;
+  date?: string; // dateKey — relevant für einmalige Einträge (welcher Monat)
 };
 
 export type Goal = {
@@ -99,10 +100,14 @@ export const EXPENSE_CATEGORIES = [
   "Abos",
   "Essen",
   "Fitness",
+  "Investieren",
+  "FTMO",
+  "Freundin",
+  "Aktivitäten",
   "Sonstiges",
 ] as const;
 
-export const INCOME_CATEGORIES = ["Gehalt", "Freelance", "Trading", "Sonstiges"] as const;
+export const INCOME_CATEGORIES = ["Gehalt", "Freelance", "Trading", "Geschenk", "Sonstiges"] as const;
 
 const seedIncome: TxItem[] = [
   { id: uid(), name: "Ausbildungsvergütung", amount: 900, freq: "monatlich", category: "Gehalt" },

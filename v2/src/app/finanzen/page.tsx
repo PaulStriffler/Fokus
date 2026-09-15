@@ -5,41 +5,34 @@ import { AnimatePresence, motion } from "motion/react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Skeleton } from "@/components/common/Section";
 import { Segmented } from "@/components/ui/Segmented";
-import { SummaryHero } from "@/components/finance/SummaryHero";
-import { CategoryBreakdown } from "@/components/finance/CategoryBreakdown";
+import { MonthOverview } from "@/components/finance/MonthOverview";
 import { TxList } from "@/components/finance/TxList";
 import { Goals } from "@/components/finance/Goals";
-import { useStore } from "@/lib/store";
 import { useHydrated } from "@/lib/hooks";
-import { summarize } from "@/lib/finance";
 
-const TABS = ["Ausgaben", "Einnahmen", "Sparziele"] as const;
+const TABS = ["Übersicht", "Ausgaben", "Einnahmen", "Sparziele"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function FinanzenPage() {
   const hydrated = useHydrated();
-  const income = useStore((s) => s.income);
-  const expenses = useStore((s) => s.expenses);
-  const [tab, setTab] = useState<Tab>("Ausgaben");
-
-  const s = summarize(income, expenses);
+  const [tab, setTab] = useState<Tab>("Übersicht");
 
   return (
     <div>
-      <PageHeader title="Finanzen" subtitle="Dein monatlicher Cashflow & Sparplan" />
+      <PageHeader title="Finanzen" subtitle="Dein Monat, dein Plan, dein Sparziel" />
 
       {!hydrated ? (
         <div className="flex flex-col gap-3">
-          <Skeleton h={168} />
           <Skeleton h={48} />
+          <Skeleton h={200} />
           <Skeleton h={220} />
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <SummaryHero s={s} />
-
-          <div className="max-w-sm">
-            <Segmented options={TABS} value={tab} onChange={setTab} id="fin" />
+          <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="min-w-[380px] sm:min-w-0 sm:max-w-lg">
+              <Segmented options={TABS} value={tab} onChange={setTab} id="fin" />
+            </div>
           </div>
 
           <AnimatePresence mode="wait">
@@ -51,12 +44,8 @@ export default function FinanzenPage() {
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="flex flex-col gap-4"
             >
-              {tab === "Ausgaben" && (
-                <>
-                  <CategoryBreakdown s={s} />
-                  <TxList kind="expenses" />
-                </>
-              )}
+              {tab === "Übersicht" && <MonthOverview />}
+              {tab === "Ausgaben" && <TxList kind="expenses" />}
               {tab === "Einnahmen" && <TxList kind="income" />}
               {tab === "Sparziele" && <Goals />}
             </motion.div>

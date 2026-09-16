@@ -1,25 +1,57 @@
 import { dateKey, monthKeyOf, weekKeys } from "./format";
 import type { Haircut } from "./store";
 
-export type ParsedCut = { client: string; amount: number };
+export type ParsedCut = { client: string; amount: number; date: string };
+
+/** Detect a leading date on a line, e.g. "15.09.2026", "15.9.", "Mo 15.09: …". */
+function parseDatePrefix(line: string): { key: string; rest: string } | null {
+  const m = line.match(
+    /^(?:[A-Za-zÄÖÜäöüß.]+\s+)?(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?\.?\s*[:–—-]?\s*(.*)$/
+  );
+  if (!m) return null;
+  const day = parseInt(m[1], 10);
+  const mon = parseInt(m[2], 10);
+  if (day < 1 || day > 31 || mon < 1 || mon > 12) return null;
+  let year = m[3] ? parseInt(m[3], 10) : new Date().getFullYear();
+  if (year < 100) year += 2000;
+  const key = `${year}-${String(mon).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return { key, rest: (m[4] || "").trim() };
+}
+
+function parseSegment(seg: string): { client: string; amount: number } | null {
+  const m = seg
+    .trim()
+    .match(/^([A-Za-zÄÖÜäöüß.\- ]+?)\s*[:=]?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:€|eur|euro)?$/i);
+  if (!m) return null;
+  const client = normalizeName(m[1]);
+  const amount = parseFloat(m[2].replace(",", "."));
+  if (!client || amount <= 0) return null;
+  return { client, amount };
+}
 
 /**
- * Parse a free-text note like "Nikolas 15, Peter 20 Frank 15" into
- * {client, amount} pairs. Splits on comma / newline / semicolon / slash,
- * then reads "<name> <number>" from each segment.
+ * Parse a free-text note into {client, amount, date} entries.
+ * - Lines can start with a date ("15.09.2026", "15.9.") which then applies
+ *   to the following entries (and any entries on the same line).
+ * - Within a line, entries are separated by comma / semicolon / slash.
+ * - Lines without a date use `fallbackDate`.
  */
-export function parseHaircutNote(text: string): ParsedCut[] {
+export function parseHaircutNote(text: string, fallbackDate: string): ParsedCut[] {
   const out: ParsedCut[] = [];
-  const segments = text.split(/[,;\n\/]+/);
-  for (const raw of segments) {
-    const seg = raw.trim();
-    if (!seg) continue;
-    // name (letters/spaces/hyphen) followed by a number, optional € / euro
-    const m = seg.match(/^([A-Za-zÄÖÜäöüß.\- ]+?)\s*[:=]?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:€|eur|euro)?$/i);
-    if (!m) continue;
-    const client = normalizeName(m[1]);
-    const amount = parseFloat(m[2].replace(",", "."));
-    if (client && amount > 0) out.push({ client, amount });
+  let current = fallbackDate;
+  for (const rawLine of text.split(/\n/)) {
+    let line = rawLine.trim();
+    if (!line) continue;
+    const dm = parseDatePrefix(line);
+    if (dm) {
+      current = dm.key;
+      line = dm.rest;
+      if (!line) continue;
+    }
+    for (const seg of line.split(/[,;\/]+/)) {
+      const cut = parseSegment(seg);
+      if (cut) out.push({ ...cut, date: current });
+    }
   }
   return out;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Skeleton } from "@/components/common/Section";
 import { Segmented } from "@/components/ui/Segmented";
@@ -31,18 +31,15 @@ export default function WissenPage() {
             <Segmented options={TABS} value={tab} onChange={setTab} id="wissen" />
           </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="flex flex-col gap-4"
-            >
-              {tab === "Academy" ? <Academy /> : <Reading />}
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-4"
+          >
+            {tab === "Academy" ? <Academy /> : <Reading />}
+          </motion.div>
         </div>
       )}
     </div>

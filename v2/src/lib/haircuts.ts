@@ -18,6 +18,21 @@ function parseDatePrefix(line: string): { key: string; rest: string } | null {
   return { key, rest: (m[4] || "").trim() };
 }
 
+// Wörter, die keine Kunden sind — Summen-/Zeitraum-Zeilen werden ignoriert.
+const AGGREGATE_WORDS = new Set([
+  "summe", "gesamt", "insgesamt", "total", "zwischensumme", "ges", "sum", "gesammt",
+  "monat", "monatlich", "woche", "wöchentlich", "tag", "täglich", "jahr", "durchschnitt",
+  "einnahmen", "verdienst", "umsatz", "gewinn",
+  "januar", "februar", "märz", "maerz", "april", "mai", "juni", "juli", "august",
+  "september", "oktober", "november", "dezember",
+  "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag",
+]);
+
+function isAggregate(name: string): boolean {
+  const words = name.toLowerCase().split(/\s+/);
+  return words.some((w) => AGGREGATE_WORDS.has(w));
+}
+
 function parseSegment(seg: string): { client: string; amount: number } | null {
   const m = seg
     .trim()
@@ -26,6 +41,8 @@ function parseSegment(seg: string): { client: string; amount: number } | null {
   const client = normalizeName(m[1]);
   const amount = parseFloat(m[2].replace(",", "."));
   if (!client || amount <= 0) return null;
+  // Nur bezahlte Kunden — Summen-/Zeitraum-Zeilen überspringen.
+  if (isAggregate(client)) return null;
   return { client, amount };
 }
 

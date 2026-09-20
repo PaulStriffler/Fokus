@@ -391,8 +391,21 @@ export const useStore = create<State>()(
     {
       name: "fokus-store-v2",
       skipHydration: true,
-      version: 4,
-      migrate: (persisted) => persisted as State,
+      version: 5,
+      migrate: (persisted, version) => {
+        const s = persisted as State;
+        // v5: alte Standard-Ziele einmalig anpassen (10 statt 20 Seiten, Tagesbetrag raus)
+        if (version < 5 && Array.isArray(s?.habits)) {
+          s.habits = s.habits
+            .filter((h) => !/tagesbetrag/i.test(h.title || ""))
+            .map((h) =>
+              /^20\s*seiten\s*lesen$/i.test((h.title || "").trim())
+                ? { ...h, title: "10 Seiten lesen", weeklyTarget: 4 }
+                : h
+            );
+        }
+        return s;
+      },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
         const habits = (p.habits ?? current.habits).map((h) => {

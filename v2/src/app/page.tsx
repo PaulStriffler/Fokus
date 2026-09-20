@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { HomeHeader } from "@/components/dashboard/HomeHeader";
+import { NorthStar } from "@/components/dashboard/NorthStar";
 import { DailyFocus } from "@/components/dashboard/DailyFocus";
 import { SleepCard } from "@/components/dashboard/SleepCard";
 import { TodoCard } from "@/components/dashboard/TodoCard";
@@ -29,6 +30,10 @@ export default function Home() {
         </div>
       ) : (
         <motion.div variants={stagger} initial="hidden" animate="show" className="flex flex-col">
+          <div className="mb-2">
+            <NorthStar />
+          </div>
+
           <SectionTitle>Heute durchziehen</SectionTitle>
           <DailyFocus />
 

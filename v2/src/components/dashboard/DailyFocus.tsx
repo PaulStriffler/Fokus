@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Flame, Plus, Pencil, X } from "lucide-react";
+import { Check, Flame, Plus, Pencil, X, CalendarRange } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Ring } from "@/components/ui/Ring";
 import { useStore } from "@/lib/store";
 import { dateKey } from "@/lib/format";
-import { isDone, habitStreak, todayProgress } from "@/lib/habits";
+import { isDone, habitStreak, todayProgress, habitsForDay } from "@/lib/habits";
 import { spring } from "@/lib/motion";
 
 const ADD_COLORS = ["var(--accent)", "var(--orange)", "var(--purple)", "var(--green)", "var(--gold)", "var(--teal)", "var(--pink)"];
@@ -23,7 +24,8 @@ export function DailyFocus() {
   const [newTitle, setNewTitle] = useState("");
 
   const dk = dateKey();
-  const { done, total, ratio } = todayProgress(habits, habitLog, dk);
+  const todays = habitsForDay(habits);
+  const { done, total, ratio } = todayProgress(todays, habitLog, dk);
   const complete = total > 0 && done === total;
 
   const headline = complete
@@ -60,7 +62,12 @@ export function DailyFocus() {
 
       {/* Habit list */}
       <div className="flex flex-col gap-1.5">
-        {habits.map((h) => {
+        {todays.length === 0 && (
+          <div className="py-4 text-center t-callout text-[var(--text-3)]">
+            Für heute nichts geplant. Plane deine Woche oder füg unten was hinzu.
+          </div>
+        )}
+        {todays.map((h) => {
           const doneToday = isDone(habitLog, dk, h.id);
           const streak = habitStreak(habitLog, h.id);
           return (
@@ -134,12 +141,20 @@ export function DailyFocus() {
           </button>
         </div>
       ) : (
-        <button
-          onClick={() => setEdit(true)}
-          className="mt-3 flex items-center gap-1.5 t-foot font-[600] text-[var(--text-3)] hover:text-[var(--text)] transition-colors"
-        >
-          <Pencil size={13} /> Gewohnheiten bearbeiten
-        </button>
+        <div className="mt-3 flex items-center justify-between">
+          <button
+            onClick={() => setEdit(true)}
+            className="flex items-center gap-1.5 t-foot font-[600] text-[var(--text-3)] hover:text-[var(--text)] transition-colors"
+          >
+            <Pencil size={13} /> Bearbeiten
+          </button>
+          <Link
+            href="/woche"
+            className="flex items-center gap-1.5 t-foot font-[600] text-[var(--accent)] hover:brightness-110 transition-all"
+          >
+            <CalendarRange size={14} /> Woche planen
+          </Link>
+        </div>
       )}
     </Card>
   );

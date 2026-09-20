@@ -3,6 +3,27 @@ import type { Habit } from "./store";
 
 type Log = Record<string, Record<string, boolean>>;
 
+// Wochentage in Anzeige-Reihenfolge (Mo..So) mit getDay()-Wert.
+export const WEEKDAYS: { day: number; short: string; long: string }[] = [
+  { day: 1, short: "Mo", long: "Montag" },
+  { day: 2, short: "Di", long: "Dienstag" },
+  { day: 3, short: "Mi", long: "Mittwoch" },
+  { day: 4, short: "Do", long: "Donnerstag" },
+  { day: 5, short: "Fr", long: "Freitag" },
+  { day: 6, short: "Sa", long: "Samstag" },
+  { day: 0, short: "So", long: "Sonntag" },
+];
+
+/** Gilt die Aktivität an diesem Wochentag? (leere days = täglich) */
+export function isForDay(habit: Habit, date: Date = new Date()): boolean {
+  const days = habit.days ?? [];
+  return days.length === 0 || days.includes(date.getDay());
+}
+
+export function habitsForDay(habits: Habit[], date: Date = new Date()): Habit[] {
+  return habits.filter((h) => isForDay(h, date));
+}
+
 export function isDone(log: Log, dk: string, habitId: string): boolean {
   return !!log[dk]?.[habitId];
 }

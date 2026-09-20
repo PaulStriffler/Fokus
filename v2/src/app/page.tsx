@@ -10,6 +10,7 @@ import { FocusTimer } from "@/components/dashboard/FocusTimer";
 import { Reflection } from "@/components/dashboard/Reflection";
 import { SleepCard } from "@/components/dashboard/SleepCard";
 import { TodoCard } from "@/components/dashboard/TodoCard";
+import { WeeklySavings } from "@/components/dashboard/WeeklySavings";
 import { FinanceGlance } from "@/components/dashboard/FinanceGlance";
 import { AreasGrid } from "@/components/dashboard/AreasGrid";
 import { SectionTitle, Skeleton } from "@/components/common/Section";
@@ -55,7 +56,10 @@ export default function Home() {
           <SleepCard />
 
           <SectionTitle>Geld</SectionTitle>
-          <FinanceGlance />
+          <div className="flex flex-col gap-3">
+            <WeeklySavings />
+            <FinanceGlance />
+          </div>
 
           <SectionTitle>Deine Bereiche</SectionTitle>
           <AreasGrid />

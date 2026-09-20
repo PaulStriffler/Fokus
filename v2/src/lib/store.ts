@@ -94,6 +94,8 @@ type State = {
   userName: string;
   focus: Record<string, { text: string; done: boolean }>; // dateKey -> die eine wichtigste Sache
   reflections: Record<string, { rating: number; note: string }>; // dateKey -> Abend-Check
+  weeklySaveTarget: number; // Wochen-Sparziel in €
+  weeklySaved: Record<string, number>; // weekKey (Montag-dateKey) -> gespart
 
   addTx: (kind: "income" | "expenses", tx: Omit<TxItem, "id">) => void;
   updateTx: (kind: "income" | "expenses", id: string, patch: Partial<TxItem>) => void;
@@ -134,6 +136,8 @@ type State = {
   setFocus: (dateKey: string, text: string) => void;
   toggleFocusDone: (dateKey: string) => void;
   setReflection: (dateKey: string, r: { rating: number; note: string }) => void;
+  setWeeklySaveTarget: (n: number) => void;
+  setWeeklySaved: (weekKey: string, amount: number) => void;
   resetAll: () => void;
 };
 
@@ -244,7 +248,6 @@ const seedHabits: Habit[] = [
   { id: uid(), title: "Academy-Lektion", color: "var(--accent)", icon: "graduation", weeklyTarget: 3, created: Date.now() },
   { id: uid(), title: "Trading-Regeln checken", color: "var(--green)", icon: "trending", weeklyTarget: 5, created: Date.now() },
   { id: uid(), title: "Gesunder Smoothie", color: "var(--mint)", icon: "smoothie", weeklyTarget: 3, created: Date.now() },
-  { id: uid(), title: "Tagesbetrag sparen", color: "var(--gold)", icon: "wallet", weeklyTarget: 7, created: Date.now() },
 ];
 
 export const useStore = create<State>()(
@@ -269,6 +272,8 @@ export const useStore = create<State>()(
       userName: "Paul",
       focus: {},
       reflections: {},
+      weeklySaveTarget: 250,
+      weeklySaved: {},
 
       addTx: (kind, tx) => set((s) => ({ [kind]: [...s[kind], { ...tx, id: uid() }] }) as Partial<State>),
       updateTx: (kind, id, patch) =>
@@ -359,6 +364,9 @@ export const useStore = create<State>()(
           focus: { ...s.focus, [dk]: { text: s.focus[dk]?.text ?? "", done: !s.focus[dk]?.done } },
         })),
       setReflection: (dk, r) => set((s) => ({ reflections: { ...s.reflections, [dk]: r } })),
+      setWeeklySaveTarget: (n) => set({ weeklySaveTarget: Math.max(0, n) }),
+      setWeeklySaved: (wk, amount) =>
+        set((s) => ({ weeklySaved: { ...s.weeklySaved, [wk]: Math.max(0, amount) } })),
       resetAll: () =>
         set({
           income: seedIncome,
@@ -376,6 +384,8 @@ export const useStore = create<State>()(
           northStar: "",
           focus: {},
           reflections: {},
+          weeklySaveTarget: 250,
+          weeklySaved: {},
         }),
     }),
     {

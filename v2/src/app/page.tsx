@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { HomeHeader } from "@/components/dashboard/HomeHeader";
+import { DailyFocus } from "@/components/dashboard/DailyFocus";
 import { SleepCard } from "@/components/dashboard/SleepCard";
 import { TodoCard } from "@/components/dashboard/TodoCard";
 import { FinanceGlance } from "@/components/dashboard/FinanceGlance";
@@ -28,11 +29,14 @@ export default function Home() {
         </div>
       ) : (
         <motion.div variants={stagger} initial="hidden" animate="show" className="flex flex-col">
-          <SectionTitle>Heute</SectionTitle>
-          <div className="flex flex-col gap-3">
-            <TodoCard />
-            <SleepCard />
-          </div>
+          <SectionTitle>Heute durchziehen</SectionTitle>
+          <DailyFocus />
+
+          <SectionTitle>Aufgaben</SectionTitle>
+          <TodoCard />
+
+          <SectionTitle>Schlaf</SectionTitle>
+          <SleepCard />
 
           <SectionTitle>Geld</SectionTitle>
           <FinanceGlance />

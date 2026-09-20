@@ -63,6 +63,13 @@ export type Todo = {
   created: number;
 };
 
+export type Habit = {
+  id: string;
+  title: string;
+  color: string;
+  created: number;
+};
+
 type State = {
   income: TxItem[];
   expenses: TxItem[];
@@ -76,6 +83,9 @@ type State = {
 
   todos: Todo[];
   haircuts: Haircut[];
+
+  habits: Habit[];
+  habitLog: Record<string, Record<string, boolean>>; // dateKey -> habitId -> done
 
   addTx: (kind: "income" | "expenses", tx: Omit<TxItem, "id">) => void;
   updateTx: (kind: "income" | "expenses", id: string, patch: Partial<TxItem>) => void;
@@ -105,6 +115,11 @@ type State = {
   addHaircuts: (list: Omit<Haircut, "id" | "created">[]) => void;
   updateHaircut: (id: string, patch: Partial<Haircut>) => void;
   removeHaircut: (id: string) => void;
+
+  addHabit: (title: string, color: string) => void;
+  updateHabit: (id: string, patch: Partial<Habit>) => void;
+  removeHabit: (id: string) => void;
+  toggleHabit: (dateKey: string, habitId: string) => void;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -208,6 +223,14 @@ const seedBooks: Book[] = [
   { id: uid(), title: "The Daily Trading Coach", author: "Brett Steenbarger", totalPages: 350, currentPage: 0 },
 ];
 
+const seedHabits: Habit[] = [
+  { id: uid(), title: "Trainieren", color: "var(--orange)", created: Date.now() },
+  { id: uid(), title: "20 Seiten lesen", color: "var(--purple)", created: Date.now() },
+  { id: uid(), title: "1 Academy-Lektion", color: "var(--accent)", created: Date.now() },
+  { id: uid(), title: "Trading-Regeln gecheckt", color: "var(--green)", created: Date.now() },
+  { id: uid(), title: "Tagesbetrag gespart", color: "var(--gold)", created: Date.now() },
+];
+
 export const useStore = create<State>()(
   persist(
     (set) => ({
@@ -223,6 +246,9 @@ export const useStore = create<State>()(
 
       todos: [],
       haircuts: [],
+
+      habits: seedHabits,
+      habitLog: {},
 
       addTx: (kind, tx) => set((s) => ({ [kind]: [...s[kind], { ...tx, id: uid() }] }) as Partial<State>),
       updateTx: (kind, id, patch) =>
@@ -291,6 +317,18 @@ export const useStore = create<State>()(
       updateHaircut: (id, patch) =>
         set((s) => ({ haircuts: s.haircuts.map((h) => (h.id === id ? { ...h, ...patch } : h)) })),
       removeHaircut: (id) => set((s) => ({ haircuts: s.haircuts.filter((h) => h.id !== id) })),
+
+      addHabit: (title, color) =>
+        set((s) => ({ habits: [...s.habits, { id: uid(), title, color, created: Date.now() }] })),
+      updateHabit: (id, patch) =>
+        set((s) => ({ habits: s.habits.map((h) => (h.id === id ? { ...h, ...patch } : h)) })),
+      removeHabit: (id) => set((s) => ({ habits: s.habits.filter((h) => h.id !== id) })),
+      toggleHabit: (dk, habitId) =>
+        set((s) => {
+          const day = { ...(s.habitLog[dk] || {}) };
+          day[habitId] = !day[habitId];
+          return { habitLog: { ...s.habitLog, [dk]: day } };
+        }),
     }),
     {
       name: "fokus-store-v2",

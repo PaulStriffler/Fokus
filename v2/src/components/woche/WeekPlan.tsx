@@ -2,117 +2,196 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Sheet } from "@/components/ui/Sheet";
+import { Field, TextInput } from "@/components/ui/Field";
 import { useStore, type Habit } from "@/lib/store";
-import { WEEKDAYS } from "@/lib/habits";
+import { weekCount, weekProgress } from "@/lib/habits";
+import { ICON_KEYS, iconFor } from "@/lib/icons";
 import { spring } from "@/lib/motion";
 
-const COLORS = ["var(--accent)", "var(--orange)", "var(--purple)", "var(--green)", "var(--gold)", "var(--teal)", "var(--pink)"];
+const COLORS = [
+  "var(--accent)", "var(--orange)", "var(--purple)", "var(--green)",
+  "var(--gold)", "var(--teal)", "var(--pink)", "var(--indigo)", "var(--mint)", "var(--red)",
+];
 
 export function WeekPlan() {
   const habits = useStore((s) => s.habits);
+  const habitLog = useStore((s) => s.habitLog);
   const addHabit = useStore((s) => s.addHabit);
   const updateHabit = useStore((s) => s.updateHabit);
   const removeHabit = useStore((s) => s.removeHabit);
 
-  const [openDay, setOpenDay] = useState<number | null>(null);
-  const [text, setText] = useState("");
-  const today = new Date().getDay();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Habit | null>(null);
+  const [title, setTitle] = useState("");
+  const [icon, setIcon] = useState("dumbbell");
+  const [color, setColor] = useState(COLORS[0]);
+  const [target, setTarget] = useState(4);
 
-  const forDay = (day: number): Habit[] =>
-    habits.filter((h) => h.days.length === 0 || h.days.includes(day));
+  const prog = weekProgress(habits, habitLog);
 
-  const add = (day: number) => {
-    const t = text.trim();
-    if (!t) return;
-    addHabit(t, COLORS[habits.length % COLORS.length], [day]);
-    setText("");
+  const openNew = () => {
+    setEditing(null);
+    setTitle("");
+    setIcon("dumbbell");
+    setColor(COLORS[habits.length % COLORS.length]);
+    setTarget(4);
+    setOpen(true);
   };
-
-  const removeFromDay = (h: Habit, day: number) => {
-    const base = h.days.length === 0 ? [0, 1, 2, 3, 4, 5, 6] : h.days;
-    const others = base.filter((d) => d !== day);
-    if (others.length === 0) removeHabit(h.id);
-    else updateHabit(h.id, { days: others });
+  const openEdit = (h: Habit) => {
+    setEditing(h);
+    setTitle(h.title);
+    setIcon(h.icon);
+    setColor(h.color);
+    setTarget(h.weeklyTarget);
+    setOpen(true);
+  };
+  const save = () => {
+    if (!title.trim()) return;
+    const data = { title: title.trim(), icon, color, weeklyTarget: target };
+    if (editing) updateHabit(editing.id, data);
+    else addHabit(data);
+    setOpen(false);
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      {WEEKDAYS.map(({ day, long }) => {
-        const items = forDay(day);
-        const isToday = day === today;
-        return (
-          <Card key={day}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="t-headline">{long}</span>
-                {isToday && (
-                  <span className="rounded-full bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] px-2 py-0.5 t-foot font-[650]" style={{ color: "var(--accent)" }}>
-                    heute
-                  </span>
-                )}
-              </div>
-              <span className="t-foot text-[var(--text-3)]">{items.length}</span>
+    <div className="flex flex-col gap-4">
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="t-foot text-[var(--text-3)]">Diese Woche</div>
+            <div className="t-title2 tabular">
+              {prog.done}
+              <span className="t-callout text-[var(--text-3)]"> / {prog.total} erledigt</span>
             </div>
+          </div>
+          <Button variant="primary" onClick={openNew}>
+            <Plus size={17} /> Ziel
+          </Button>
+        </div>
+      </Card>
 
-            <div className="flex flex-col gap-1.5">
-              <AnimatePresence initial={false}>
-                {items.map((h) => (
-                  <motion.div
-                    key={h.id}
-                    layout
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={spring}
-                    className="group flex items-center gap-2.5 rounded-[var(--r-sm)] bg-[var(--surface-2)] px-3 py-2.5"
-                  >
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: h.color }} />
-                    <span className="flex-1 t-callout font-[540]">{h.title}</span>
-                    {h.days.length === 0 && (
-                      <span className="t-foot text-[var(--text-3)]">täglich</span>
-                    )}
-                    <button
-                      onClick={() => removeFromDay(h, day)}
-                      aria-label="Von diesem Tag entfernen"
-                      className="grid h-6 w-6 place-items-center rounded-full text-[var(--text-3)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface)] hover:text-[var(--red)] transition-opacity"
-                    >
-                      <X size={14} />
-                    </button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+      {habits.length === 0 ? (
+        <Card>
+          <div className="py-6 text-center">
+            <div className="t-headline mb-1">Noch keine Wochenziele</div>
+            <div className="t-callout text-[var(--text-2)] mb-4">
+              Leg fest, was du jede Woche konstant machst — z. B. 4× Gym, 4× lesen.
             </div>
+            <Button variant="primary" onClick={openNew}>
+              <Plus size={16} /> Erstes Ziel
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          <AnimatePresence initial={false}>
+            {habits.map((h) => {
+              const Icon = iconFor(h.icon);
+              const count = weekCount(habitLog, h.id);
+              return (
+                <motion.div key={h.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} transition={spring}>
+                  <Card as="button" interactive onClick={() => openEdit(h)} className="w-full">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[13px]" style={{ background: `color-mix(in srgb, ${h.color} 18%, transparent)` }}>
+                        <Icon size={21} style={{ color: h.color }} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="t-headline truncate">{h.title}</div>
+                        <div className="t-foot text-[var(--text-3)]">{h.weeklyTarget}× pro Woche</div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: h.weeklyTarget }).map((_, i) => (
+                          <span key={i} className="h-2 w-2 rounded-full" style={{ background: i < count ? h.color : "var(--border-strong)" }} />
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
 
-            {openDay === day ? (
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") add(day);
-                    if (e.key === "Escape") setOpenDay(null);
+      <Sheet open={open} onClose={() => setOpen(false)} title={editing ? "Ziel bearbeiten" : "Neues Wochenziel"}>
+        <Field label="Was willst du tun?">
+          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z. B. Gym, 10 Seiten lesen, Smoothie" autoFocus />
+        </Field>
+
+        <div className="mb-4">
+          <span className="block t-foot text-[var(--text-2)] mb-2 ml-0.5">Icon</span>
+          <div className="grid grid-cols-6 gap-2">
+            {ICON_KEYS.map((k) => {
+              const Icon = iconFor(k);
+              const active = k === icon;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setIcon(k)}
+                  className="grid aspect-square place-items-center rounded-[12px] border transition-colors"
+                  style={{
+                    borderColor: active ? color : "var(--border)",
+                    background: active ? `color-mix(in srgb, ${color} 16%, transparent)` : "var(--surface-2)",
                   }}
-                  autoFocus
-                  placeholder="z. B. Push-Training, 20 Seiten lesen…"
-                  className="flex-1 h-10 px-3 rounded-[var(--r-sm)] bg-[var(--surface-2)] border border-[var(--border)] outline-none text-[0.9rem] placeholder:text-[var(--text-3)] focus:border-[var(--accent)]"
-                />
-                <button onClick={() => add(day)} aria-label="Hinzufügen" className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-sm)] bg-[var(--accent)] text-white">
-                  <Plus size={18} />
+                >
+                  <Icon size={19} style={{ color: active ? color : "var(--text-2)" }} />
                 </button>
-              </div>
-            ) : (
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <span className="block t-foot text-[var(--text-2)] mb-2 ml-0.5">Farbe</span>
+          <div className="flex flex-wrap gap-2.5">
+            {COLORS.map((c) => (
               <button
-                onClick={() => { setOpenDay(day); setText(""); }}
-                className="mt-2 flex items-center gap-1.5 t-foot font-[600] text-[var(--text-3)] hover:text-[var(--accent)] transition-colors"
+                key={c}
+                onClick={() => setColor(c)}
+                aria-label="Farbe"
+                className="h-8 w-8 rounded-full transition-transform"
+                style={{ background: c, outline: c === color ? "2px solid var(--text)" : "none", outlineOffset: 2, transform: c === color ? "scale(1.1)" : "scale(1)" }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <span className="block t-foot text-[var(--text-2)] mb-2 ml-0.5">Wie oft pro Woche?</span>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <button
+                key={n}
+                onClick={() => setTarget(n)}
+                className="flex-1 h-10 rounded-[var(--r-sm)] border t-callout font-[650] transition-colors"
+                style={{
+                  borderColor: target === n ? color : "var(--border)",
+                  background: target === n ? `color-mix(in srgb, ${color} 16%, transparent)` : "var(--surface-2)",
+                  color: target === n ? "var(--text)" : "var(--text-3)",
+                }}
               >
-                <Plus size={14} /> Aktivität hinzufügen
+                {n}
               </button>
-            )}
-          </Card>
-        );
-      })}
+            ))}
+          </div>
+          <p className="t-foot text-[var(--text-3)] mt-2">{target === 7 ? "Jeden Tag" : `${target}× pro Woche — du wählst flexibel welche Tage`}</p>
+        </div>
+
+        <div className="flex gap-2 mt-5 mb-1">
+          {editing && (
+            <Button variant="danger" onClick={() => { removeHabit(editing.id); setOpen(false); }} aria-label="Löschen">
+              <Trash2 size={17} />
+            </Button>
+          )}
+          <Button variant="primary" full onClick={save}>
+            {editing ? "Speichern" : "Hinzufügen"}
+          </Button>
+        </div>
+      </Sheet>
     </div>
   );
 }

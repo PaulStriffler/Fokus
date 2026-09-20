@@ -67,8 +67,10 @@ export type Habit = {
   id: string;
   title: string;
   color: string;
+  icon: string; // key aus lib/icons
+  weeklyTarget: number; // wie oft pro Woche (1-7)
   created: number;
-  days: number[]; // getDay()-Werte 0=So..6=Sa; leeres Array = täglich
+  days?: number[]; // legacy — nicht mehr aktiv genutzt
 };
 
 type State = {
@@ -122,7 +124,7 @@ type State = {
   updateHaircut: (id: string, patch: Partial<Haircut>) => void;
   removeHaircut: (id: string) => void;
 
-  addHabit: (title: string, color: string, days?: number[]) => void;
+  addHabit: (h: { title: string; color: string; icon: string; weeklyTarget: number }) => void;
   updateHabit: (id: string, patch: Partial<Habit>) => void;
   removeHabit: (id: string) => void;
   toggleHabit: (dateKey: string, habitId: string) => void;
@@ -237,11 +239,12 @@ const seedBooks: Book[] = [
 ];
 
 const seedHabits: Habit[] = [
-  { id: uid(), title: "Trainieren", color: "var(--orange)", created: Date.now(), days: [1, 2, 4, 5] },
-  { id: uid(), title: "20 Seiten lesen", color: "var(--purple)", created: Date.now(), days: [] },
-  { id: uid(), title: "1 Academy-Lektion", color: "var(--accent)", created: Date.now(), days: [1, 3, 5] },
-  { id: uid(), title: "Trading-Regeln gecheckt", color: "var(--green)", created: Date.now(), days: [1, 2, 3, 4, 5] },
-  { id: uid(), title: "Tagesbetrag gespart", color: "var(--gold)", created: Date.now(), days: [] },
+  { id: uid(), title: "Trainieren", color: "var(--orange)", icon: "dumbbell", weeklyTarget: 4, created: Date.now() },
+  { id: uid(), title: "10 Seiten lesen", color: "var(--purple)", icon: "book", weeklyTarget: 4, created: Date.now() },
+  { id: uid(), title: "Academy-Lektion", color: "var(--accent)", icon: "graduation", weeklyTarget: 3, created: Date.now() },
+  { id: uid(), title: "Trading-Regeln checken", color: "var(--green)", icon: "trending", weeklyTarget: 5, created: Date.now() },
+  { id: uid(), title: "Gesunder Smoothie", color: "var(--mint)", icon: "smoothie", weeklyTarget: 3, created: Date.now() },
+  { id: uid(), title: "Tagesbetrag sparen", color: "var(--gold)", icon: "wallet", weeklyTarget: 7, created: Date.now() },
 ];
 
 export const useStore = create<State>()(
@@ -335,8 +338,8 @@ export const useStore = create<State>()(
         set((s) => ({ haircuts: s.haircuts.map((h) => (h.id === id ? { ...h, ...patch } : h)) })),
       removeHaircut: (id) => set((s) => ({ haircuts: s.haircuts.filter((h) => h.id !== id) })),
 
-      addHabit: (title, color, days = []) =>
-        set((s) => ({ habits: [...s.habits, { id: uid(), title, color, created: Date.now(), days }] })),
+      addHabit: (h) =>
+        set((s) => ({ habits: [...s.habits, { ...h, id: uid(), created: Date.now() }] })),
       updateHabit: (id, patch) =>
         set((s) => ({ habits: s.habits.map((h) => (h.id === id ? { ...h, ...patch } : h)) })),
       removeHabit: (id) => set((s) => ({ habits: s.habits.filter((h) => h.id !== id) })),
@@ -378,14 +381,25 @@ export const useStore = create<State>()(
     {
       name: "fokus-store-v2",
       skipHydration: true,
-      version: 3,
+      version: 4,
       migrate: (persisted) => persisted as State,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
-        const habits = (p.habits ?? current.habits).map((h) => ({
-          ...h,
-          days: Array.isArray(h.days) ? h.days : [],
-        }));
+        const habits = (p.habits ?? current.habits).map((h) => {
+          const legacyDays = Array.isArray(h.days) ? h.days : undefined;
+          return {
+            ...h,
+            icon: h.icon ?? "target",
+            weeklyTarget:
+              typeof h.weeklyTarget === "number"
+                ? h.weeklyTarget
+                : legacyDays
+                ? legacyDays.length === 0
+                  ? 7
+                  : legacyDays.length
+                : 7,
+          };
+        });
         return { ...current, ...p, habits };
       },
     }

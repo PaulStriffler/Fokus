@@ -1,4 +1,4 @@
-import { dateKey } from "./format";
+import { dateKey, weekKeys } from "./format";
 import type { Habit } from "./store";
 
 type Log = Record<string, Record<string, boolean>>;
@@ -14,38 +14,38 @@ export const WEEKDAYS: { day: number; short: string; long: string }[] = [
   { day: 0, short: "So", long: "Sonntag" },
 ];
 
-/** Gilt die Aktivität an diesem Wochentag? (leere days = täglich) */
-export function isForDay(habit: Habit, date: Date = new Date()): boolean {
-  const days = habit.days ?? [];
-  return days.length === 0 || days.includes(date.getDay());
-}
-
-export function habitsForDay(habits: Habit[], date: Date = new Date()): Habit[] {
-  return habits.filter((h) => isForDay(h, date));
-}
-
 export function isDone(log: Log, dk: string, habitId: string): boolean {
   return !!log[dk]?.[habitId];
 }
 
-/** Consecutive days a habit was done, counting up to today (grace: today still open). */
-export function habitStreak(log: Log, habitId: string, from: Date = new Date()): number {
-  let streak = 0;
-  const d = new Date(from);
-  if (!isDone(log, dateKey(d), habitId)) d.setDate(d.getDate() - 1);
-  while (isDone(log, dateKey(d), habitId)) {
-    streak++;
-    d.setDate(d.getDate() - 1);
+/** Wie oft diese Woche erledigt (max. 1x pro Tag zählt). */
+export function weekCount(log: Log, habitId: string): number {
+  return weekKeys().reduce((n, k) => n + (log[k]?.[habitId] ? 1 : 0), 0);
+}
+
+/** Noch offen diese Woche. */
+export function remaining(habit: Habit, log: Log): number {
+  return Math.max(0, habit.weeklyTarget - weekCount(log, habit.id));
+}
+
+export function isWeekComplete(habit: Habit, log: Log): boolean {
+  return weekCount(log, habit.id) >= habit.weeklyTarget;
+}
+
+/** Gesamt-Wochenfortschritt über alle Ziele (für den Ring). */
+export function weekProgress(habits: Habit[], log: Log) {
+  let done = 0;
+  let total = 0;
+  for (const h of habits) {
+    total += h.weeklyTarget;
+    done += Math.min(weekCount(log, h.id), h.weeklyTarget);
   }
-  return streak;
+  return { done, total, ratio: total ? done / total : 0 };
 }
 
-export function todayProgress(habits: Habit[], log: Log, dk: string = dateKey()) {
-  const done = habits.filter((h) => isDone(log, dk, h.id)).length;
-  return { done, total: habits.length, ratio: habits.length ? done / habits.length : 0 };
+/** Erledigungen pro Wochentag (für die Mo–So-Leiste). */
+export function dayCounts(log: Log): number[] {
+  return weekKeys().map((k) => Object.values(log[k] || {}).filter(Boolean).length);
 }
 
-/** Best current streak across all habits — for a headline "🔥 N". */
-export function bestStreak(log: Log, habits: Habit[]): number {
-  return habits.reduce((max, h) => Math.max(max, habitStreak(log, h.id)), 0);
-}
+export const todayKey = () => dateKey();

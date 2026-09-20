@@ -89,6 +89,10 @@ type State = {
   habitLog: Record<string, Record<string, boolean>>; // dateKey -> habitId -> done
   northStar: string; // dein großes Ziel / Warum
 
+  userName: string;
+  focus: Record<string, { text: string; done: boolean }>; // dateKey -> die eine wichtigste Sache
+  reflections: Record<string, { rating: number; note: string }>; // dateKey -> Abend-Check
+
   addTx: (kind: "income" | "expenses", tx: Omit<TxItem, "id">) => void;
   updateTx: (kind: "income" | "expenses", id: string, patch: Partial<TxItem>) => void;
   removeTx: (kind: "income" | "expenses", id: string) => void;
@@ -123,6 +127,12 @@ type State = {
   removeHabit: (id: string) => void;
   toggleHabit: (dateKey: string, habitId: string) => void;
   setNorthStar: (v: string) => void;
+
+  setUserName: (v: string) => void;
+  setFocus: (dateKey: string, text: string) => void;
+  toggleFocusDone: (dateKey: string) => void;
+  setReflection: (dateKey: string, r: { rating: number; note: string }) => void;
+  resetAll: () => void;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -253,6 +263,9 @@ export const useStore = create<State>()(
       habits: seedHabits,
       habitLog: {},
       northStar: "",
+      userName: "Paul",
+      focus: {},
+      reflections: {},
 
       addTx: (kind, tx) => set((s) => ({ [kind]: [...s[kind], { ...tx, id: uid() }] }) as Partial<State>),
       updateTx: (kind, id, patch) =>
@@ -334,6 +347,33 @@ export const useStore = create<State>()(
           return { habitLog: { ...s.habitLog, [dk]: day } };
         }),
       setNorthStar: (v) => set({ northStar: v }),
+
+      setUserName: (v) => set({ userName: v || "Ich" }),
+      setFocus: (dk, text) =>
+        set((s) => ({ focus: { ...s.focus, [dk]: { text, done: s.focus[dk]?.done ?? false } } })),
+      toggleFocusDone: (dk) =>
+        set((s) => ({
+          focus: { ...s.focus, [dk]: { text: s.focus[dk]?.text ?? "", done: !s.focus[dk]?.done } },
+        })),
+      setReflection: (dk, r) => set((s) => ({ reflections: { ...s.reflections, [dk]: r } })),
+      resetAll: () =>
+        set({
+          income: seedIncome,
+          expenses: seedExpenses,
+          goals: seedGoals,
+          sleep: {},
+          courses: seedCourses,
+          weeklyPagesGoal: 100,
+          reading: {},
+          books: seedBooks,
+          todos: [],
+          haircuts: [],
+          habits: seedHabits,
+          habitLog: {},
+          northStar: "",
+          focus: {},
+          reflections: {},
+        }),
     }),
     {
       name: "fokus-store-v2",

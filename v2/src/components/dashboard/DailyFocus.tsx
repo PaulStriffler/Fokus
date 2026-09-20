@@ -7,8 +7,8 @@ import { Check, Flame, Plus, Pencil, X, CalendarRange } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Ring } from "@/components/ui/Ring";
 import { useStore } from "@/lib/store";
-import { dateKey } from "@/lib/format";
-import { isDone, habitStreak, todayProgress, habitsForDay } from "@/lib/habits";
+import { dateKey, parseKey, weekKeys } from "@/lib/format";
+import { isDone, habitStreak, todayProgress, habitsForDay, WEEKDAYS } from "@/lib/habits";
 import { spring } from "@/lib/motion";
 
 const ADD_COLORS = ["var(--accent)", "var(--orange)", "var(--purple)", "var(--green)", "var(--gold)", "var(--teal)", "var(--pink)"];
@@ -59,6 +59,25 @@ export function DailyFocus() {
           <div className="t-title3 leading-snug">{headline}</div>
         </div>
       </div>
+
+      {/* Wochen-Konstanz */}
+      <WeekConsistency habitLog={habitLog} habits={habits} className="mb-4" />
+
+      {/* Feier bei 100% */}
+      <AnimatePresence>
+        {complete && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={spring}
+            className="mb-4 flex items-center justify-center gap-2 rounded-[var(--r-md)] py-2.5 t-callout font-[650]"
+            style={{ background: "color-mix(in srgb, var(--green) 15%, transparent)", color: "var(--green)" }}
+          >
+            🔥 Tag durchgezogen — starke Leistung!
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Habit list */}
       <div className="flex flex-col gap-1.5">
@@ -157,5 +176,51 @@ export function DailyFocus() {
         </div>
       )}
     </Card>
+  );
+}
+
+function WeekConsistency({
+  habitLog,
+  habits,
+  className = "",
+}: {
+  habitLog: Record<string, Record<string, boolean>>;
+  habits: { id: string; days: number[] }[];
+  className?: string;
+}) {
+  const keys = weekKeys();
+  const todayK = dateKey();
+
+  return (
+    <div className={["flex items-center justify-between", className].join(" ")}>
+      {keys.map((k, i) => {
+        const date = parseKey(k);
+        const dayHabits = habitsForDay(habits as never, date);
+        const doneCount = dayHabits.filter((h) => habitLog[k]?.[h.id]).length;
+        const ratio = dayHabits.length ? doneCount / dayHabits.length : 0;
+        const isToday = k === todayK;
+        const isFuture = k > todayK;
+        const full = dayHabits.length > 0 && ratio === 1;
+        return (
+          <div key={k} className="flex flex-col items-center gap-1">
+            <div
+              className="grid h-7 w-7 place-items-center rounded-full transition-colors"
+              style={{
+                background: full
+                  ? "var(--green)"
+                  : ratio > 0
+                  ? "color-mix(in srgb, var(--accent) 40%, transparent)"
+                  : "var(--surface-2)",
+                border: isToday ? "2px solid var(--accent)" : "2px solid transparent",
+                opacity: isFuture ? 0.4 : 1,
+              }}
+            >
+              {full && <Check size={13} strokeWidth={3} className="text-white" />}
+            </div>
+            <span className="t-foot text-[0.6rem] text-[var(--text-3)]">{WEEKDAYS[i].short}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }

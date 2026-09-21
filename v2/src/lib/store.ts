@@ -242,13 +242,24 @@ const seedBooks: Book[] = [
   { id: uid(), title: "The Daily Trading Coach", author: "Brett Steenbarger", totalPages: 350, currentPage: 0 },
 ];
 
-const seedHabits: Habit[] = [
-  { id: uid(), title: "Trainieren", color: "var(--orange)", icon: "dumbbell", weeklyTarget: 4, created: Date.now() },
-  { id: uid(), title: "10 Seiten lesen", color: "var(--purple)", icon: "book", weeklyTarget: 4, created: Date.now() },
-  { id: uid(), title: "Academy-Lektion", color: "var(--accent)", icon: "graduation", weeklyTarget: 3, created: Date.now() },
-  { id: uid(), title: "Trading-Regeln checken", color: "var(--green)", icon: "trending", weeklyTarget: 5, created: Date.now() },
-  { id: uid(), title: "Gesunder Smoothie", color: "var(--mint)", icon: "smoothie", weeklyTarget: 3, created: Date.now() },
-];
+function makeSeedHabits(): Habit[] {
+  const now = Date.now();
+  return [
+    { id: uid(), title: "Gym", color: "var(--orange)", icon: "dumbbell", weeklyTarget: 4, created: now },
+    { id: uid(), title: "7–8 Std. Schlaf", color: "var(--indigo)", icon: "moon", weeklyTarget: 7, created: now },
+    { id: uid(), title: "Gesunder Smoothie", color: "var(--mint)", icon: "smoothie", weeklyTarget: 4, created: now },
+    { id: uid(), title: "Genug Wasser trinken", color: "var(--teal)", icon: "droplet", weeklyTarget: 7, created: now },
+    { id: uid(), title: "Entries checken", color: "var(--green)", icon: "trending", weeklyTarget: 7, created: now },
+    { id: uid(), title: "Markt-Analyse (Wochenvorbereitung)", color: "var(--accent)", icon: "brain", weeklyTarget: 1, created: now },
+    { id: uid(), title: "10 Seiten lesen", color: "var(--purple)", icon: "book", weeklyTarget: 3, created: now },
+    { id: uid(), title: "Academy-Lektion", color: "var(--pink)", icon: "graduation", weeklyTarget: 2, created: now },
+    { id: uid(), title: "Immobilien recherchieren", color: "var(--gold)", icon: "briefcase", weeklyTarget: 1, created: now },
+    { id: uid(), title: "Haare schneiden", color: "var(--red)", icon: "scissors", weeklyTarget: 4, created: now },
+    { id: uid(), title: "Wochen-Sparen eintragen", color: "var(--gold)", icon: "wallet", weeklyTarget: 1, created: now },
+  ];
+}
+
+const seedHabits: Habit[] = makeSeedHabits();
 
 export const useStore = create<State>()(
   persist(
@@ -391,18 +402,13 @@ export const useStore = create<State>()(
     {
       name: "fokus-store-v2",
       skipHydration: true,
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const s = persisted as State;
-        // v5: alte Standard-Ziele einmalig anpassen (10 statt 20 Seiten, Tagesbetrag raus)
-        if (version < 5 && Array.isArray(s?.habits)) {
-          s.habits = s.habits
-            .filter((h) => !/tagesbetrag/i.test(h.title || ""))
-            .map((h) =>
-              /^20\s*seiten\s*lesen$/i.test((h.title || "").trim())
-                ? { ...h, title: "10 Seiten lesen", weeklyTarget: 4 }
-                : h
-            );
+        // v6: von Paul kuratiertes Wochenziel-Set einmalig übernehmen, Habit-Log frisch starten
+        if (version < 6 && s) {
+          s.habits = makeSeedHabits();
+          s.habitLog = {};
         }
         return s;
       },

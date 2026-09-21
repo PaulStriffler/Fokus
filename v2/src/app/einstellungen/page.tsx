@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Sheet } from "@/components/ui/Sheet";
+import { Camera } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useHydrated, useTheme } from "@/lib/hooks";
 
@@ -15,6 +16,8 @@ export default function EinstellungenPage() {
   const hydrated = useHydrated();
   const name = useStore((s) => s.userName);
   const setUserName = useStore((s) => s.setUserName);
+  const apiKey = useStore((s) => s.apiKey);
+  const setApiKey = useStore((s) => s.setApiKey);
   const resetAll = useStore((s) => s.resetAll);
   const [theme, toggle] = useTheme();
   const [confirm, setConfirm] = useState(false);
@@ -48,6 +51,34 @@ export default function EinstellungenPage() {
                 {theme === "dark" ? <><Sun size={16} /> Hell</> : <><Moon size={16} /> Dunkel</>}
               </Button>
             </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center gap-2 mb-1">
+              <Camera size={16} style={{ color: "var(--accent)" }} />
+              <span className="t-headline">Board-Scan (Anthropic-API)</span>
+            </div>
+            <p className="t-foot text-[var(--text-3)] mb-3">
+              Für das Foto-Scannen deines Boards. Dein Key wird nur lokal auf diesem Gerät gespeichert und
+              direkt an Anthropic gesendet. Du brauchst etwas Guthaben auf deinem Anthropic-Konto.
+            </p>
+            <Field label="Anthropic API-Key">
+              <TextInput
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-ant-…"
+              />
+            </Field>
+            <a
+              href="https://console.anthropic.com/settings/keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="t-foot font-[600]"
+              style={{ color: "var(--accent)" }}
+            >
+              → Key erstellen / Guthaben aufladen
+            </a>
           </Card>
 
           <Card>

@@ -6,6 +6,8 @@ import { NorthStar } from "@/components/dashboard/NorthStar";
 import { DailyQuote } from "@/components/dashboard/DailyQuote";
 import { FocusToday } from "@/components/dashboard/FocusToday";
 import { DailyFocus } from "@/components/dashboard/DailyFocus";
+import { BoardScan } from "@/components/dashboard/BoardScan";
+import { JournalLink } from "@/components/dashboard/JournalLink";
 import { FocusTimer } from "@/components/dashboard/FocusTimer";
 import { Reflection } from "@/components/dashboard/Reflection";
 import { SleepCard } from "@/components/dashboard/SleepCard";
@@ -48,6 +50,12 @@ export default function Home() {
 
           <SectionTitle>Aufgaben</SectionTitle>
           <TodoCard />
+
+          <SectionTitle>Board & Journal</SectionTitle>
+          <div className="flex flex-col gap-3">
+            <BoardScan />
+            <JournalLink />
+          </div>
 
           <SectionTitle>Tagesabschluss</SectionTitle>
           <Reflection />

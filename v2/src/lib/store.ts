@@ -97,6 +97,9 @@ type State = {
   weeklySaveTarget: number; // Wochen-Sparziel in €
   weeklySaved: Record<string, number>; // weekKey (Montag-dateKey) -> gespart
 
+  journal: { id: string; date: string; text: string; created: number }[];
+  apiKey: string; // Anthropic API-Key (nur lokal im Browser)
+
   addTx: (kind: "income" | "expenses", tx: Omit<TxItem, "id">) => void;
   updateTx: (kind: "income" | "expenses", id: string, patch: Partial<TxItem>) => void;
   removeTx: (kind: "income" | "expenses", id: string) => void;
@@ -138,6 +141,10 @@ type State = {
   setReflection: (dateKey: string, r: { rating: number; note: string }) => void;
   setWeeklySaveTarget: (n: number) => void;
   setWeeklySaved: (weekKey: string, amount: number) => void;
+  addJournal: (text: string, date?: string) => void;
+  addJournalMany: (texts: string[], date?: string) => void;
+  removeJournal: (id: string) => void;
+  setApiKey: (k: string) => void;
   resetAll: () => void;
 };
 
@@ -285,6 +292,8 @@ export const useStore = create<State>()(
       reflections: {},
       weeklySaveTarget: 250,
       weeklySaved: {},
+      journal: [],
+      apiKey: "",
 
       addTx: (kind, tx) => set((s) => ({ [kind]: [...s[kind], { ...tx, id: uid() }] }) as Partial<State>),
       updateTx: (kind, id, patch) =>
@@ -378,6 +387,17 @@ export const useStore = create<State>()(
       setWeeklySaveTarget: (n) => set({ weeklySaveTarget: Math.max(0, n) }),
       setWeeklySaved: (wk, amount) =>
         set((s) => ({ weeklySaved: { ...s.weeklySaved, [wk]: Math.max(0, amount) } })),
+      addJournal: (text, date = dateKey()) =>
+        set((s) => ({ journal: [{ id: uid(), date, text, created: Date.now() }, ...s.journal] })),
+      addJournalMany: (texts, date = dateKey()) =>
+        set((s) => ({
+          journal: [
+            ...texts.filter((t) => t.trim()).map((t, i) => ({ id: uid(), date, text: t.trim(), created: Date.now() + i })),
+            ...s.journal,
+          ],
+        })),
+      removeJournal: (id) => set((s) => ({ journal: s.journal.filter((j) => j.id !== id) })),
+      setApiKey: (k) => set({ apiKey: k.trim() }),
       resetAll: () =>
         set({
           income: seedIncome,
@@ -397,6 +417,7 @@ export const useStore = create<State>()(
           reflections: {},
           weeklySaveTarget: 250,
           weeklySaved: {},
+          journal: [],
         }),
     }),
     {
